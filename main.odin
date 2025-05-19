@@ -161,11 +161,116 @@ get_click_position :: proc() -> (int, int) {
 	return x, y
 }
 
+check_number_of_neighbour_flags :: proc(game: ^Game, x: int, y: int) -> i8 {
+	sum: i8 = 0
+	// NW
+	if x - 1 >= 0 &&
+	   x - 1 < ROW_SIZE &&
+	   y - 1 >= 0 &&
+	   y - 1 < COL_SIZE &&
+	   game.board_state[x - 1][y - 1] == Cell_state.Flag {
+		sum += 1
+	}
+	// N
+	if y - 1 >= 0 && y - 1 < COL_SIZE && game.board_state[x][y - 1] == Cell_state.Flag {
+		sum += 1
+	}
+	// NE
+	if x + 1 >= 0 &&
+	   x + 1 < ROW_SIZE &&
+	   y - 1 >= 0 &&
+	   y - 1 < COL_SIZE &&
+	   game.board_state[x + 1][y - 1] == Cell_state.Flag {
+		sum += 1
+	}
+
+	// W
+	if x - 1 >= 0 && x - 1 < ROW_SIZE && game.board_state[x - 1][y] == Cell_state.Flag {
+		sum += 1
+	}
+	// E
+	if x + 1 >= 0 && x + 1 < ROW_SIZE && game.board_state[x + 1][y] == Cell_state.Flag {
+		sum += 1
+	}
+
+	// SW
+	if x - 1 >= 0 &&
+	   x - 1 < ROW_SIZE &&
+	   y + 1 >= 0 &&
+	   y + 1 < COL_SIZE &&
+	   game.board_state[x - 1][y + 1] == Cell_state.Flag {
+		sum += 1
+	}
+	// S
+	if y + 1 >= 0 && y + 1 < COL_SIZE && game.board_state[x][y + 1] == Cell_state.Flag {
+		sum += 1
+	}
+	// SE
+	if x + 1 >= 0 &&
+	   x + 1 < ROW_SIZE &&
+	   y + 1 >= 0 &&
+	   y + 1 < COL_SIZE &&
+	   game.board_state[x + 1][y + 1] == Cell_state.Flag {
+		sum += 1
+	}
+
+	return sum
+}
+
+reveal_cell :: proc(game: ^Game, x: int, y: int) {
+	if game.board[x][y] == i8(Cell_type.Bomb) && game.board_state[x][y] != Cell_state.Flag {
+		game.game_state = Game_state.Loose
+	} else if game.board[x][y] == i8(Cell_type.Zero) &&
+	   game.board_state[x][y] == Cell_state.Hidden {
+		game.board_state[x][y] = Cell_state.Show
+		reveal_cells(game, x, y)
+	} else if game.board_state[x][y] != Cell_state.Flag {
+		game.board_state[x][y] = Cell_state.Show
+	}
+}
+
+reveal_cells :: proc(game: ^Game, x: int, y: int) {
+	// NW
+	if x - 1 >= 0 && x - 1 < ROW_SIZE && y - 1 >= 0 && y - 1 < COL_SIZE {
+		reveal_cell(game, x - 1, y - 1)
+	}
+	// N
+	if y - 1 >= 0 && y - 1 < COL_SIZE {
+		reveal_cell(game, x, y - 1)
+	}
+	// NE
+	if x + 1 >= 0 && x + 1 < ROW_SIZE && y - 1 >= 0 && y - 1 < COL_SIZE {
+		reveal_cell(game, x + 1, y - 1)
+	}
+
+	// W
+	if x - 1 >= 0 && x - 1 < ROW_SIZE {
+		reveal_cell(game, x - 1, y)
+	}
+	// E
+	if x + 1 >= 0 && x + 1 < ROW_SIZE {
+		reveal_cell(game, x + 1, y)
+	}
+
+	// SW
+	if x - 1 >= 0 && x - 1 < ROW_SIZE && y + 1 >= 0 && y + 1 < COL_SIZE {
+		reveal_cell(game, x - 1, y + 1)
+	}
+	// S
+	if y + 1 >= 0 && y + 1 < COL_SIZE {
+		reveal_cell(game, x, y + 1)
+	}
+	// SE
+	if x + 1 >= 0 && x + 1 < ROW_SIZE && y + 1 >= 0 && y + 1 < COL_SIZE {
+		reveal_cell(game, x + 1, y + 1)
+	}
+}
+
 update_game :: proc(game: ^Game) {
 	sum := 0
-	for x := 0; x < ROW_SIZE; x += 1 {
-		for y := 0; y < COL_SIZE; y += 1 {
-			if game.board_state[x][y] != Cell_state.Hidden {
+	for row in game.board_state {
+		for cell in row {
+			if cell != Cell_state.Hidden {
 				sum += 1
 			}
 		}
@@ -177,6 +282,16 @@ update_game :: proc(game: ^Game) {
 	}
 
 	x, y := get_click_position()
+
+	if r.IsMouseButtonReleased(r.MouseButton.MIDDLE) && game.board_state[x][y] == Cell_state.Show {
+		number := game.board[x][y]
+
+		if (check_number_of_neighbour_flags(game, x, y) == number) {
+			reveal_cells(game, x, y)
+		}
+
+		return
+	}
 
 	if (r.IsMouseButtonReleased(r.MouseButton.LEFT) ||
 		   r.IsMouseButtonReleased(r.MouseButton.RIGHT)) &&
@@ -192,6 +307,8 @@ update_game :: proc(game: ^Game) {
 		if (game.board_state[x][y] != Cell_state.Flag) {
 			game.board_state[x][y] = Cell_state.Show
 		}
+
+		return
 	}
 
 	if r.IsMouseButtonReleased(r.MouseButton.RIGHT) && game.board_state[x][y] != Cell_state.Show {
@@ -202,6 +319,8 @@ update_game :: proc(game: ^Game) {
 			game.board_state[x][y] = Cell_state.Hidden
 			game.mine_remaining += 1
 		}
+
+		return
 	}
 }
 
@@ -271,7 +390,7 @@ draw_game :: proc(game: ^Game) {
 						X_OFFSET + CELL_SIZE * x,
 						Y_OFFSET + CELL_SIZE * y,
 						FONT_SIZE,
-						r.PINK,
+						r.RED,
 					)
 				case:
 					r.DrawText(
@@ -310,7 +429,7 @@ draw_game :: proc(game: ^Game) {
 }
 
 main :: proc() {
-	window := Window{WIDTH, HEIGHT, 30}
+	window := Window{WIDTH, HEIGHT, 60}
 	game := Game{}
 
 	r.InitWindow(window.width, window.height, "Minefinder")
