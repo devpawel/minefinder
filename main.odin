@@ -12,7 +12,7 @@ SCALE :: 2
 CELL_SIZE :: 40 * SCALE
 ROW_SIZE :: 10
 COL_SIZE :: 10
-PADDING :: 3
+PADDING :: 4
 X_OFFSET :: 0
 Y_OFFSET :: 100
 BOMBS :: 10
@@ -267,6 +267,17 @@ reveal_cells :: proc(game: ^Game, x: int, y: int) {
 }
 
 update_game :: proc(game: ^Game) {
+	if r.IsKeyReleased(r.KeyboardKey.SPACE) {
+		new_game(game)
+	}
+
+	if (r.IsMouseButtonReleased(r.MouseButton.LEFT) ||
+		   r.IsMouseButtonReleased(r.MouseButton.RIGHT) ||
+		   r.IsMouseButtonReleased(r.MouseButton.MIDDLE)) &&
+	   game.game_state == Game_state.Loose {
+		return
+	}
+
 	sum := 0
 	for row in game.board_state {
 		for cell in row {
@@ -303,17 +314,6 @@ update_game :: proc(game: ^Game) {
 		return
 	}
 
-	if (r.IsMouseButtonReleased(r.MouseButton.LEFT) ||
-		   r.IsMouseButtonReleased(r.MouseButton.RIGHT) ||
-		   r.IsMouseButtonReleased(r.MouseButton.MIDDLE)) &&
-	   game.game_state == Game_state.Loose {
-		return
-	}
-
-	if r.IsKeyReleased(r.KeyboardKey.SPACE) {
-		new_game(game)
-	}
-
 	if r.IsMouseButtonReleased(r.MouseButton.LEFT) {
 		if game.board[x][y] == i8(Cell_type.Bomb) {
 			game.game_state = Game_state.Loose
@@ -343,93 +343,67 @@ update_game :: proc(game: ^Game) {
 	}
 }
 
+draw_cell_contents :: proc(x: i32, y: i32, text: cstring, text_size: i32, color: r.Color) {
+	r.DrawText(
+		text,
+		X_OFFSET + CELL_SIZE * x + text_size / 2 - PADDING / 2,
+		Y_OFFSET + CELL_SIZE * y,
+		FONT_SIZE,
+		color,
+	)
+}
+
+draw_cell :: proc(x: i32, y: i32, color: r.Color) {
+	r.DrawRectangle(
+		X_OFFSET + CELL_SIZE * x,
+		Y_OFFSET + CELL_SIZE * y,
+		CELL_SIZE - PADDING,
+		CELL_SIZE - PADDING,
+		color,
+	)
+}
+
 draw_game :: proc(game: ^Game) {
 	r.BeginDrawing()
 
 	r.ClearBackground(r.BLACK)
 
+	text: cstring
+	text_size: i32
+
 	x, y: i32
 	for x = 0; x < ROW_SIZE; x += 1 {
 		for y = 0; y < COL_SIZE; y += 1 {
-			r.DrawRectangle(
-				X_OFFSET + CELL_SIZE * x,
-				Y_OFFSET + CELL_SIZE * y,
-				CELL_SIZE - PADDING,
-				CELL_SIZE - PADDING,
-				r.GRAY,
-			)
+			draw_cell(x, y, r.GRAY)
 
 			if game.board_state[x][y] != Cell_state.Hidden {
-				r.DrawRectangle(
-					X_OFFSET + CELL_SIZE * x,
-					Y_OFFSET + CELL_SIZE * y,
-					CELL_SIZE - PADDING,
-					CELL_SIZE - PADDING,
-					r.DARKGRAY,
-				)
+				draw_cell(x, y, r.DARKGRAY)
 			}
 
 			if game.board_state[x][y] == Cell_state.Show {
+				text = r.TextFormat("%s", game.cell_map[Cell_type(game.board[x][y])])
+				text_size = r.MeasureText(text, FONT_SIZE)
+
 				#partial switch Cell_type(game.board[x][y]) {
 				case Cell_type.Bomb:
-					r.DrawText(
-						"*",
-						X_OFFSET + CELL_SIZE * x,
-						Y_OFFSET + CELL_SIZE * y,
-						FONT_SIZE,
-						r.BLACK,
-					)
+					draw_cell_contents(x, y, text, text_size, r.BLACK)
 				case Cell_type.Zero:
-					r.DrawRectangle(
-						X_OFFSET + CELL_SIZE * x,
-						Y_OFFSET + CELL_SIZE * y,
-						CELL_SIZE - PADDING,
-						CELL_SIZE - PADDING,
-						r.GREEN,
-					)
+					draw_cell(x, y, r.DARKGREEN)
 				case Cell_type.One:
-					r.DrawText(
-						r.TextFormat("%s", game.cell_map[Cell_type(game.board[x][y])]),
-						X_OFFSET + CELL_SIZE * x,
-						Y_OFFSET + CELL_SIZE * y,
-						FONT_SIZE,
-						r.WHITE,
-					)
+					draw_cell_contents(x, y, text, text_size, r.WHITE)
 				case Cell_type.Two:
-					r.DrawText(
-						r.TextFormat("%s", game.cell_map[Cell_type(game.board[x][y])]),
-						X_OFFSET + CELL_SIZE * x,
-						Y_OFFSET + CELL_SIZE * y,
-						FONT_SIZE,
-						r.MAGENTA,
-					)
+					draw_cell_contents(x, y, text, text_size, r.MAGENTA)
 				case Cell_type.Three:
-					r.DrawText(
-						r.TextFormat("%s", game.cell_map[Cell_type(game.board[x][y])]),
-						X_OFFSET + CELL_SIZE * x,
-						Y_OFFSET + CELL_SIZE * y,
-						FONT_SIZE,
-						r.RED,
-					)
+					draw_cell_contents(x, y, text, text_size, r.RED)
 				case:
-					r.DrawText(
-						r.TextFormat("%s", game.cell_map[Cell_type(game.board[x][y])]),
-						X_OFFSET + CELL_SIZE * x,
-						Y_OFFSET + CELL_SIZE * y,
-						FONT_SIZE,
-						r.YELLOW,
-					)
+					draw_cell_contents(x, y, text, text_size, r.YELLOW)
 				}
 			}
 
 			if game.board_state[x][y] == Cell_state.Flag {
-				r.DrawText(
-					"F",
-					X_OFFSET + CELL_SIZE * x,
-					Y_OFFSET + CELL_SIZE * y,
-					FONT_SIZE,
-					r.GREEN,
-				)
+				text = "F"
+				text_size = r.MeasureText(text, FONT_SIZE)
+				draw_cell_contents(x, y, text, text_size, r.GREEN)
 			}
 		}
 	}
@@ -437,12 +411,16 @@ draw_game :: proc(game: ^Game) {
 	r.DrawText(r.TextFormat("%i", game.mine_remaining), 10, 10, FONT_SIZE, r.WHITE)
 
 	if game.game_state == Game_state.Loose {
-		r.DrawText("Game Over", WIDTH / 4, 10, FONT_SIZE, r.WHITE)
+		text :: "Game Over"
+		text_size := r.MeasureText(text, FONT_SIZE)
+		r.DrawText(text, WIDTH / 2 - text_size / 2, 10, FONT_SIZE, r.WHITE)
 
 	}
 
 	if game.game_state == Game_state.Win {
-		r.DrawText("You Won!", WIDTH / 4, 10, FONT_SIZE, r.WHITE)
+		text :: "You Won!"
+		text_size := r.MeasureText(text, FONT_SIZE)
+		r.DrawText(text, WIDTH / 2 - text_size / 2, 10, FONT_SIZE, r.WHITE)
 	}
 
 	r.EndDrawing()
