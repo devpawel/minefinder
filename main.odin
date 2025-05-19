@@ -7,7 +7,7 @@ import "core:strconv"
 import "core:strings"
 import r "vendor:raylib"
 
-SCALE :: 2
+SCALE :: 1
 
 CELL_SIZE :: 40 * SCALE
 ROW_SIZE :: 10
@@ -32,7 +32,7 @@ Game :: struct {
 	board:          [ROW_SIZE][COL_SIZE]i8,
 	board_state:    [ROW_SIZE][COL_SIZE]Cell_state,
 	cell_map:       map[Cell_type]string,
-	mine_remaining: i8,
+	mine_remaining: int,
 	game_state:     Game_state,
 }
 
