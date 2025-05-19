@@ -281,6 +281,16 @@ update_game :: proc(game: ^Game) {
 		return
 	}
 
+	if game.game_state == Game_state.Loose {
+		for x := 0; x < ROW_SIZE; x += 1 {
+			for y := 0; y < COL_SIZE; y += 1 {
+				if game.board[x][y] == i8(Cell_type.Bomb) {
+					game.board_state[x][y] = Cell_state.Show
+				}
+			}
+		}
+	}
+
 	x, y := get_click_position()
 
 	if r.IsMouseButtonReleased(r.MouseButton.MIDDLE) && game.board_state[x][y] == Cell_state.Show {
@@ -294,9 +304,14 @@ update_game :: proc(game: ^Game) {
 	}
 
 	if (r.IsMouseButtonReleased(r.MouseButton.LEFT) ||
-		   r.IsMouseButtonReleased(r.MouseButton.RIGHT)) &&
+		   r.IsMouseButtonReleased(r.MouseButton.RIGHT) ||
+		   r.IsMouseButtonReleased(r.MouseButton.MIDDLE)) &&
 	   game.game_state == Game_state.Loose {
 		return
+	}
+
+	if r.IsKeyReleased(r.KeyboardKey.SPACE) {
+		new_game(game)
 	}
 
 	if r.IsMouseButtonReleased(r.MouseButton.LEFT) {
@@ -305,6 +320,10 @@ update_game :: proc(game: ^Game) {
 		}
 
 		if (game.board_state[x][y] != Cell_state.Flag) {
+			if (game.board[x][y] == i8(Cell_type.Zero)) {
+				reveal_cells(game, x, y)
+			}
+
 			game.board_state[x][y] = Cell_state.Show
 		}
 
@@ -419,6 +438,7 @@ draw_game :: proc(game: ^Game) {
 
 	if game.game_state == Game_state.Loose {
 		r.DrawText("Game Over", WIDTH / 4, 10, FONT_SIZE, r.WHITE)
+
 	}
 
 	if game.game_state == Game_state.Win {
@@ -426,6 +446,12 @@ draw_game :: proc(game: ^Game) {
 	}
 
 	r.EndDrawing()
+}
+
+new_game :: proc(game: ^Game) {
+	game^ = Game{}
+	create_cell_map(game)
+	generate_map(game)
 }
 
 main :: proc() {
